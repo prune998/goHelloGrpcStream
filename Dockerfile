@@ -5,10 +5,12 @@ LABEL vendor="Prune - prune@lecentre.net" \
 
 COPY helloworld /go/src/github.com/prune998/goHelloGrpcStream/helloworld
 WORKDIR /go/src/github.com/prune998/goHelloGrpcStream/helloworld
-RUN cd greeter_server && \
-    go build && \
-    cd ../greeter_client && \
-    go build
+
+RUN    { go get github.com/golang/protobuf || true; } && \
+  go get  golang.org/x/net/context && \
+  go get  google.golang.org/grpc
+RUN    cd greeter_server && CGO_ENABLED=0 GOOS=linux go build -v
+RUN    cd greeter_client && CGO_ENABLED=0 GOOS=linux go build -v
 
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
