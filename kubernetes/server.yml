@@ -2,24 +2,24 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: greeter_server
+  name: greeter-server
   labels:
-    app: "greeter_server"
+    app: "greeter-server"
 spec:
   ports:
     - port: 7788
       name: "grpc"
       protocol: TCP
   selector:
-    app: "greeter_server"
+    app: "greeter-server"
 
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: greeter_server
+  name: greeter-server
   labels:
-    app: greeter_server
+    app: greeter-server
 spec:
   replicas: 1
   strategy:
@@ -29,16 +29,17 @@ spec:
       maxUnavailable: 1
   selector:
     matchLabels:
-      app: "greeter_server"
+      app: "greeter-server"
   template:
     metadata:
       labels:
-        app: "greeter_server"
+        app: "greeter-server"
     spec:
       containers:
-      - name: greeter_server
+      - name: greeter-server
         image: "prune/gohellogrpcstream:latest"      
         ports:
         - containerPort: 7788
           name: grpc
-        cmd: "/root/greeter_server"
+        command: 
+          - "/root/greeter_server"

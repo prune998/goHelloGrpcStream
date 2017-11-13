@@ -1,26 +1,19 @@
----
-apiVersion: extensions/v1beta1
-kind: Deployment
+apiVersion: batch/v1
+kind: Job
 metadata:
-  name: greeter_client
+  # name: greeter-client
+  generateName: "greeter-client-"
   labels:
-    app: greeter_client
+    app: "greeter-client"
 spec:
-  replicas: 1
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 1
-  selector:
-    matchLabels:
-      app: "greeter_client"
+  # backoffLimit: 2
+  activeDeadlineSeconds: 100
   template:
     metadata:
-      labels:
-        app: "greeter_client"
+      name: "greeter-client"
     spec:
       containers:
-      - name: greeter_client
-        image: "prune/gohellogrpcstream:latest"      
-        cmd: "/root/greeter_client greeter_server:7788"
+      - name: "greeter-client"
+        image: "prune/gohellogrpcstream:latest"
+        command: ["/root/greeter_client",  "greeter-server:7788"]
+      restartPolicy: Never
