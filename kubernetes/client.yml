@@ -1,0 +1,26 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: greeter_client
+  labels:
+    app: greeter_client
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: "greeter_client"
+  template:
+    metadata:
+      labels:
+        app: "greeter_client"
+    spec:
+      containers:
+      - name: greeter_client
+        image: "prune/gohellogrpcstream:latest"      
+        cmd: "/root/greeter_client greeter_server:7788"
