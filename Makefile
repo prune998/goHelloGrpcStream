@@ -15,8 +15,8 @@ docker:
 
 protos: helloworld/helloworld.pb.go
 
-helloworld/helloworld.pb.go: helloworld/helloworld.proto
-	cd helloworld && go generate
+helloworld/helloworld.pb.go:
+	cd helloworld/helloworld && go generate
 
 greeter_client: test
 	cd helloworld/greeter_client && CGO_ENABLED=0 GOOS=linux go build -v -ldflags "-X main.version=$(version)-$(buildtime)" 
