@@ -1,0 +1,36 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: loadtest-client
+  labels:
+    app: loadtest-client
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: "loadtest-client"
+  template:
+    metadata:
+      labels:
+        app: "loadtest-client"
+      annotations:
+          sidecar.istio.io/inject: "false"
+    spec:
+      containers:
+      - name: loadtest-client
+        image: "prune/gohellogrpcstream:latest"      
+        ports:
+        - containerPort: 7788
+          name: loadtest-client
+        command: 
+          - "/root/loadtest_client"
+        env:
+          - name: "CLIENTS"
+            value: "10"
+          - name: "SERVER"
+            value: "greeter-server:7788"
