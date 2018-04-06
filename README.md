@@ -3,6 +3,15 @@ a test Hello world application using GRPC streaming in GO
 
 ## Usage
 
+### Proto file
+use `protoc` if you need to re-generate the proto files.
+Refer to https://github.com/grpc/grpc-go/tree/master/examples if you need help.
+
+```
+cd helloworld
+protoc -I helloworld/ helloworld/helloworld.proto --go_out=plugins=grpc:helloworld
+```
+
 ### Server
 The server opens a TCP socket and wait for GRPC messages to come in
 
@@ -41,7 +50,7 @@ docker push prune/gohellogrpcstream:latest
 ## Kubernetes
 
 ### server.yml
-Deploys a server + service thatl isten on port 7788
+Deploys a server + service that listen on port 7788
 
 ```
     kubectl -n dev apply -f server.yml
@@ -53,3 +62,10 @@ Deploys a client that connect to the server on `greeter_server:7788`
 ```
     kubectl -n dev apply -f client.yml
 ```
+
+# Load Test
+## server
+nothing to change on the server
+
+## client
+Use the `loadtest_client` which is simulating any number of clients in parallel.

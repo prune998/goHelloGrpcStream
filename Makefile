@@ -2,7 +2,7 @@ version := $(shell git describe  --always --tags)
 
 buildtime := $(shell date -u +%Y%m%d.%H%M%S)
 
-all: protos cmds
+all: cmds
 
 lint:
 	@gometalinter --disable-all --enable=vet --enable=vetshadow  --enable=structcheck \
@@ -16,7 +16,8 @@ docker:
 protos: helloworld/helloworld.pb.go
 
 helloworld/helloworld.pb.go:
-	cd helloworld/helloworld && go generate
+	# cd helloworld/helloworld && go generate
+	cd helloworld && protoc -I helloworld/ helloworld/helloworld.proto --go_out=plugins=grpc:helloworld
 
 greeter_client: test
 	cd helloworld/greeter_client && CGO_ENABLED=0 GOOS=linux go build -v -ldflags "-X main.version=$(version)-$(buildtime)" 
