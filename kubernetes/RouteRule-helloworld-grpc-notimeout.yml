@@ -1,0 +1,15 @@
+apiVersion: config.istio.io/v1alpha2
+kind: RouteRule
+metadata:
+  name: helloworld-grpc-notimeout
+spec:
+  destination:
+    name: greeter-server
+  match:
+    request:
+      headers:
+        uri:
+          prefix: "/helloworld.Greeter/SayHelloStream"
+  httpReqTimeout:
+    simpleTimeout:
+      timeout: 20s

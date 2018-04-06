@@ -15,3 +15,5 @@
 
 helloworld/greeter_server/greeter_server
 hlloworld/greeter_client/greeter_client
+helloworld/loadtest_client/loadtest_client
+helloworld/loadtest_server/loadtest_server

@@ -1,0 +1,12 @@
+apiVersion: config.istio.io/v1alpha2
+kind: RouteRule
+metadata:
+  name: useredge-lb
+spec:
+  destination:
+    name: useredged
+  match:
+    source:
+      name: istio-ingress
+
+

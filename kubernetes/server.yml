@@ -8,7 +8,7 @@ metadata:
 spec:
   ports:
     - port: 7788
-      name: "grpc"
+      name: "grpc-greeter"
       protocol: TCP
   selector:
     app: "greeter-server"
@@ -40,6 +40,6 @@ spec:
         image: "prune/gohellogrpcstream:latest"      
         ports:
         - containerPort: 7788
-          name: grpc
+          name: grpc-greeter
         command: 
           - "/root/greeter_server"

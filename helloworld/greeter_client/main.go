@@ -20,9 +20,10 @@ package main
 
 import (
 	"io"
-	"log"
 	"os"
 
+	kitlog "github.com/go-kit/kit/log"
+	"github.com/namsral/flag"
 	pb "github.com/prune998/goHelloGrpcStream/helloworld/helloworld"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -32,38 +33,48 @@ const (
 	defaultName = "world"
 )
 
+var (
+	debug  = flag.Bool("debug", false, "display debugs")
+	server = flag.String("server", "localhost:7788", "Greeter Server URL")
+	name   = flag.String("name", "world", "name of the client (will be displayed in the server)")
+)
+
 func main() {
-	address := os.Args[1]
+	flag.Parse()
+
+	// setup logger with Json output
+	logger := kitlog.NewJSONLogger(kitlog.NewSyncWriter(os.Stdout))
+	logger = kitlog.With(logger, "application", "greeter_server", "ts", kitlog.DefaultTimestampUTC, "caller", kitlog.DefaultCaller)
+
 	// Set up a connection to the server.
-	conn, err := grpc.Dial(address, grpc.WithInsecure())
+	conn, err := grpc.Dial(*server, grpc.WithInsecure())
 	if err != nil {
-		log.Fatalf("did not connect: %v", err)
+		logger.Log("msg", "cant connect to server", "err", err)
 	}
 	defer conn.Close()
 	c := pb.NewGreeterClient(conn)
 
 	// Contact the server and print out its response.
-	name := defaultName
-	if len(os.Args) > 2 {
-		name = os.Args[2]
-	}
-	r, err := c.SayHello(context.Background(), &pb.HelloRequest{Name: name})
+	r, err := c.SayHello(context.Background(), &pb.HelloRequest{Name: *name})
 	if err != nil {
-		log.Fatalf("could not greet: %v", err)
+		logger.Log("msg", "could not greet server", "err", err)
 	}
-	log.Printf("Greeting: %s", r.Message)
+	logger.Log("msg", "Received Greeting: "+r.Message)
 
 	// request for the Stream
-	stream, err := c.SayHelloStream(context.Background(), &pb.HelloRequest{Name: name})
+	stream, err := c.SayHelloStream(context.Background())
 
 	for {
 		msg, err := stream.Recv()
 		if err == io.EOF {
+			logger.Log("msg", "got EOF from server", "err", err)
 			break
 		}
 		if err != nil {
-			log.Fatalf("%v.GetCustomers(_) = _, %v", c, err)
+			//log.Fatalf("%v.GetCustomers(_) = _, %v", c, err)
+			logger.Log("msg", "got error from server", "err", err)
+			break
 		}
-		log.Printf("%s", msg.Message)
+		logger.Log("msg", msg.Message)
 	}
 }

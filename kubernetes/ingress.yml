@@ -1,0 +1,14 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: istio
+  name: greeter-istio
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /helloworld.*
+        backend:
+          serviceName: greeter-server
+          servicePort: grpc

@@ -24,10 +24,15 @@ greeter_client: test
 greeter_server: test
 	cd helloworld/greeter_server && CGO_ENABLED=0 GOOS=linux go build -v -ldflags "-X main.version=$(version)-$(buildtime)" 
 
-cmds: greeter_client greeter_server
+loadtest_client: test
+	cd helloworld/loadtest_client && CGO_ENABLED=0 GOOS=linux go build -v -ldflags "-X main.version=$(version)-$(buildtime)" 
+
+cmds: greeter_client greeter_server loadtest_client
 
 test:
 	go test ./...
 
 clean:
-	rm -f ./helloworld/greeter_server/greeter_server ./helloworld/greeter_client/greeter_client
+	rm -f ./helloworld/greeter_server/greeter_server \
+	  ./helloworld/greeter_client/greeter_client \
+	  ./helloworld/loadtest_client/loadtest_client
