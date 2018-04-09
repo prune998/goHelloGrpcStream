@@ -53,12 +53,14 @@ type server struct {
 
 // SayHello implements helloworld.GreeterServer
 func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
+	PromSayHelloReceivedCounter.Inc()
 	s.Log("msg", "got request", "client", in.Name, "port", *port)
 	return &pb.HelloReply{Message: "Hello " + in.Name + " " + *port}, nil
 }
 
 // SayHelloStream implements helloworld.GreeterServer
 func (s *server) SayHelloStream(stream pb.Greeter_SayHelloStreamServer) error {
+	PromSayHelloStreamReceivedCounter.Inc()
 	for {
 		select {
 		case <-time.After(5 * time.Second):
