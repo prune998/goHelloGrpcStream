@@ -12,7 +12,20 @@ spec:
       protocol: TCP
   selector:
     app: "greeter-server"
-
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: greeter-http-server
+  labels:
+    app: "greeter-server"
+spec:
+  ports:
+    - port: 7789
+      name: "http-greeter"
+      protocol: TCP
+  selector:
+    app: "greeter-server"
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -43,5 +56,7 @@ spec:
         ports:
         - containerPort: 7788
           name: grpc-greeter
+        - containerPort: 7789
+          name: http-greeter
         command: 
           - "/root/greeter_server"

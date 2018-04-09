@@ -22,6 +22,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -40,10 +41,11 @@ import (
 )
 
 var (
-	freq    = flag.Duration("freq", 10*time.Second, "frequency for sending a msg")
-	debug   = flag.Bool("debug", false, "display debugs")
-	port    = flag.String("port", "localhost:7788", "port to bind")
-	version = "no version set"
+	freq     = flag.Duration("freq", 10*time.Second, "frequency for sending a msg")
+	debug    = flag.Bool("debug", false, "display debugs")
+	grpcPort = flag.String("grpcport", "7788", "port to bind for GRPC")
+	httpPort = flag.String("httpport", "7789", "port to bind for HTTP")
+	version  = "no version set"
 )
 
 // server is used to implement helloworld.GreeterServer.
@@ -54,8 +56,8 @@ type server struct {
 // SayHello implements helloworld.GreeterServer
 func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
 	PromSayHelloReceivedCounter.Inc()
-	s.Log("msg", "got request", "client", in.Name, "port", *port)
-	return &pb.HelloReply{Message: "Hello " + in.Name + " " + *port}, nil
+	s.Log("msg", "got request", "client", in.Name, "port", *grpcPort)
+	return &pb.HelloReply{Message: "Hello " + in.Name + " " + *grpcPort}, nil
 }
 
 // SayHelloStream implements helloworld.GreeterServer
@@ -64,7 +66,7 @@ func (s *server) SayHelloStream(stream pb.Greeter_SayHelloStreamServer) error {
 	for {
 		select {
 		case <-time.After(5 * time.Second):
-			err := stream.Send(&pb.HelloReply{Message: "Hello Stream " + *port})
+			err := stream.Send(&pb.HelloReply{Message: "Hello Stream " + *grpcPort})
 			if err == io.EOF {
 				s.Log("msg", "EOF while sending alerts to user", "err", err)
 				break
@@ -87,7 +89,7 @@ func main() {
 	logger := kitlog.NewJSONLogger(kitlog.NewSyncWriter(os.Stdout))
 	logger = kitlog.With(logger, "application", "greeter_server", "ts", kitlog.DefaultTimestampUTC, "caller", kitlog.DefaultCaller)
 
-	lis, err := net.Listen("tcp", *port)
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%v", *grpcPort))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
@@ -118,7 +120,12 @@ func main() {
 	// prometheus metrics
 	http.Handle("/metrics", prometheus.Handler())
 
-	logger.Log("msg", "Listening on tcp://localhost:"+*port)
+	go func() {
+		logger.Log("msg", fmt.Sprintf("listening HTTP (metrics & map) on %d", *httpPort))
+		logger.Log("err", http.ListenAndServe(fmt.Sprintf(":%s", *httpPort), nil))
+	}()
+
+	logger.Log("msg", "Listening on tcp://localhost:"+*grpcPort)
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}

@@ -1,4 +1,4 @@
-version := $(shell git describe  --always --tags)
+version := $(shell git describe  --always --tags --long --abbrev=8)
 
 buildtime := $(shell date -u +%Y%m%d.%H%M%S)
 
@@ -13,6 +13,10 @@ lint:
 docker:
 	docker build -t prune/gohellogrpcstream:$(version) .
 
+docker-push:
+	docker push prune/gohellogrpcstream:$(version)
+	docker tag prune/gohellogrpcstream:$(version) prune/gohellogrpcstream:latest
+	docker push prune/gohellogrpcstream:latest
 protos: helloworld/helloworld.pb.go
 
 helloworld/helloworld.pb.go:
