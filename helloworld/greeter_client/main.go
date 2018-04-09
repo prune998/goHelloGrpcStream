@@ -22,6 +22,8 @@ import (
 	"io"
 	"os"
 
+	"github.com/grpc-ecosystem/go-grpc-prometheus"
+
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/namsral/flag"
 	pb "github.com/prune998/goHelloGrpcStream/helloworld/helloworld"
@@ -47,7 +49,11 @@ func main() {
 	logger = kitlog.With(logger, "application", "greeter_server", "ts", kitlog.DefaultTimestampUTC, "caller", kitlog.DefaultCaller)
 
 	// Set up a connection to the server.
-	conn, err := grpc.Dial(*server, grpc.WithInsecure())
+	conn, err := grpc.Dial(*server,
+		grpc.WithInsecure(),
+		grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
+		grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
+	)
 	if err != nil {
 		logger.Log("msg", "cant connect to server", "err", err)
 	}

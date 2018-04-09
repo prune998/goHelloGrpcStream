@@ -11,9 +11,9 @@ lint:
 	     --enable=gocyclo --cyclo-over=20 --vendor ./...
 
 docker:
-	docker build -t prune/gohellogrpcstream:$(version) .
+	docker build -t prune/gohellogrpcstream:$(version) --build-arg VERSION=$(version) --build-arg BUILDTIME=$(buildtime) .
 
-docker-push:
+docker-push: docker
 	docker push prune/gohellogrpcstream:$(version)
 	docker tag prune/gohellogrpcstream:$(version) prune/gohellogrpcstream:latest
 	docker push prune/gohellogrpcstream:latest

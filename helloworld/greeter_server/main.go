@@ -63,19 +63,23 @@ func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloRe
 // SayHelloStream implements helloworld.GreeterServer
 func (s *server) SayHelloStream(stream pb.Greeter_SayHelloStreamServer) error {
 	PromSayHelloStreamReceivedCounter.Inc()
+	PromSayHelloStreamReceivedGauge.Inc()
 	for {
 		select {
 		case <-time.After(5 * time.Second):
 			err := stream.Send(&pb.HelloReply{Message: "Hello Stream " + *grpcPort})
 			if err == io.EOF {
 				s.Log("msg", "EOF while sending alerts to user", "err", err)
+				PromSayHelloStreamReceivedGauge.Dec()
 				break
 			}
 			if err != nil {
 				s.Log("msg", "Error while sending alerts to user", "err", err)
+				PromSayHelloStreamReceivedGauge.Dec()
 				break
 			}
 		case <-stream.Context().Done():
+			PromSayHelloStreamReceivedGauge.Dec()
 			return nil
 		}
 

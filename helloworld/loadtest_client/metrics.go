@@ -12,14 +12,9 @@ var (
 		Name: "greeter_server_SayHelloStream_received_counter",
 		Help: "SayHelloStream requests received",
 	})
-	PromSayHelloStreamReceivedGauge = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "greeter_server_SayHelloStream_received_gauge",
-		Help: "current SayHelloStream count",
-	})
 )
 
 func init() {
 	prometheus.MustRegister(PromSayHelloReceivedCounter)
 	prometheus.MustRegister(PromSayHelloStreamReceivedCounter)
-	prometheus.MustRegister(PromSayHelloStreamReceivedGauge)
 }

@@ -23,6 +23,9 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"time"
+
+	"github.com/grpc-ecosystem/go-grpc-prometheus"
 
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/namsral/flag"
@@ -61,7 +64,11 @@ func NewClient(id string, logger kitlog.Logger, debug bool) *Client {
 func (c Client) Start(ctx context.Context, jobChan chan<- int, server, name string, id int) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	conn, err := grpc.Dial(server, grpc.WithInsecure())
+	conn, err := grpc.Dial(server,
+		grpc.WithInsecure(),
+		grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
+		grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
+	)
 	if err != nil {
 		c.Logger.Log("msg", "cant connect to server", "err", err, "ID", c.ID)
 		jobChan <- id
@@ -77,10 +84,18 @@ func (c Client) Start(ctx context.Context, jobChan chan<- int, server, name stri
 		jobChan <- id
 		return
 	}
-	c.Logger.Log("msg", "Received Greeting: "+r.Message, "ID", c.ID)
+	PromSayHelloReceivedCounter.Inc()
+	if c.debug {
+		c.Logger.Log("msg", "Received Greeting: "+r.Message, "ID", c.ID)
+	}
 
 	stream, err := g.SayHelloStream(context.Background())
-
+	if err != nil {
+		c.Logger.Log("msg", "could not SayHelloStream", "err", err, "ID", c.ID)
+		jobChan <- id
+		return
+	}
+	PromSayHelloStreamReceivedCounter.Inc()
 	for {
 		msg, err := stream.Recv()
 		if err == io.EOF {
@@ -92,7 +107,9 @@ func (c Client) Start(ctx context.Context, jobChan chan<- int, server, name stri
 			c.Logger.Log("msg", "got error from server", "err", err, "ID", c.ID)
 			break
 		}
-		c.Logger.Log("msg", msg.Message, "ID", c.ID)
+		if c.debug {
+			c.Logger.Log("msg", msg.Message, "ID", c.ID)
+		}
 	}
 }
 
@@ -111,18 +128,22 @@ func main() {
 	jobs := make([]*Client, *clients)
 	ctx := context.Background()
 	jobChan := make(chan int)
+	jobCounter := 0
 	for i := 0; i < *clients; i++ {
 		jobs[i] = NewClient(strconv.Itoa(i), logger, *debug)
 		go jobs[i].Start(ctx, jobChan, *server, strconv.Itoa(i), i)
+		jobCounter++
 	}
 
 	for {
 		select {
 		case wdone := <-jobChan:
 			logger.Log("info", "job finished", "state", "OK", "ID", wdone)
-			return
+			jobCounter--
 		case <-signals:
 			return
+		case <-time.After(20 * time.Second):
+			logger.Log("info", "jobCounter", "jobCounter", jobCounter)
 		}
 	}
 
