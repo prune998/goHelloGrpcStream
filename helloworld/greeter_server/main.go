@@ -21,14 +21,18 @@
 package main
 
 import (
+	"encoding/json"
 	"io"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"time"
 
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/namsral/flag"
+	"github.com/prometheus/client_golang/prometheus"
 	pb "github.com/prune998/goHelloGrpcStream/helloworld/helloworld"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -36,9 +40,10 @@ import (
 )
 
 var (
-	freq  = flag.Duration("freq", 10*time.Second, "frequency for sending a msg")
-	debug = flag.Bool("debug", false, "display debugs")
-	port  = flag.String("port", "localhost:7788", "port to bind")
+	freq    = flag.Duration("freq", 10*time.Second, "frequency for sending a msg")
+	debug   = flag.Bool("debug", false, "display debugs")
+	port    = flag.String("port", "localhost:7788", "port to bind")
+	version = "no version set"
 )
 
 // server is used to implement helloworld.GreeterServer.
@@ -84,10 +89,33 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	s := grpc.NewServer()
+
+	grpc_prometheus.EnableHandlingTimeHistogram()
+	serverOpts := []grpc.ServerOption{
+		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
+		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+	}
+	s := grpc.NewServer(serverOpts...)
 	pb.RegisterGreeterServer(s, &server{logger})
 	// Register reflection service on gRPC server.
 	reflection.Register(s)
+
+	// healthz basic
+	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		m := map[string]interface{}{"version": version, "status": "OK"}
+
+		b, err := json.Marshal(m)
+		if err != nil {
+			http.Error(w, "no valid point for this device_id", 500)
+			return
+		}
+
+		w.Write(b)
+	})
+
+	// prometheus metrics
+	http.Handle("/metrics", prometheus.Handler())
+
 	logger.Log("msg", "Listening on tcp://localhost:"+*port)
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
