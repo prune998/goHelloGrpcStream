@@ -53,19 +53,57 @@ docker push prune/gohellogrpcstream:latest
 Deploys a server + service that listen on port 7788
 
 ```
-    kubectl -n dev apply -f server.yml
+    kubectl -n dev apply -f kubernetes/server.yml
 ```
 
 ### client.yml
 Deploys a client that connect to the server on `greeter_server:7788`
 
 ```
-    kubectl -n dev apply -f client.yml
+    kubectl -n dev apply -f kubernetes/client.yml
 ```
 
 # Load Test
 ## server
-nothing to change on the server
+Deploy the server using the Istio Sidecar :
+```
+    kubectl -n dev apply -f kubernetes/server-istio.yml
+```
 
 ## client
 Use the `loadtest_client` which is simulating any number of clients in parallel.
+The `loadtest_client` make one TCP connexion per client which then open a `gRPC HTTP/2 Stream`. Starting 100 clients should show you 100 POST requests on `/helloworld.Greeter/SayHello`. 
+When stopping the client, the 100 streams will be closed, showing 100 `/helloworld.Greeter/SayHelloStream` POSTs.
+
+```
+    kubectl -n dev apply -f kubernetes/deployment-loadtest.yml
+```
+You can then scale the number of connexions by either :
+- editing the number of `clients` from the ENV
+- scaling to more pods
+
+## ingress
+You can test the client/server inside K8s but from an external point of view using an Ingress.
+Update the `kubernetes/ingress.yml` file with a public DNS name you own then deploy using : 
+```
+kubectl -n dev apply -f kubernetes/ingress.yml
+```
+
+Then update the `greeter-client` or `loadtest-client` to use the external endpoint : 
+```
+...
+      containers:
+      - name: loadtest-client
+        image: "prune/gohellogrpcstream:latest"      
+        ports:
+        - containerPort: 7788
+          name: loadtest-client
+        command: 
+          - "/root/loadtest_client"
+        env:
+          - name: "CLIENTS"
+            value: "10"
+          - name: "SERVER"
+            value: "your-external-dns-name:80"
+...
+```
