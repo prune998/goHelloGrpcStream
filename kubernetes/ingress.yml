@@ -6,9 +6,10 @@ metadata:
   name: greeter-istio
 spec:
   rules:
-  - http:
+  # update the host field to reflect a public URL
+  - host: greet.dev
+    http:
       paths:
-      - path: /helloworld.*
-        backend:
+      - backend:
           serviceName: greeter-server
-          servicePort: grpc
+          servicePort: grpc-greeter
