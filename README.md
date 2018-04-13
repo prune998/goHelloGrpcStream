@@ -61,6 +61,14 @@ Deploys a server + service that listen on port 7788 along with a load-tester cli
     kubectl -n dev apply -f kubernetes/deployment-autoinject-istio.yml
 ```
 
+The `client` pod will not do anything so Istio have the time to settle. 
+Start the `loadtest_client` using : 
+
+```
+kubectl exec -ti $(kubectl get pods --selector=app=loadtest-client -o jsonpath='{.items..metadata.name}')  /root/loadtest_client
+
+```
+
 # Load Test
 
 ## client
