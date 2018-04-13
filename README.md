@@ -24,9 +24,9 @@ The server opens a TCP socket and wait for GRPC messages to come in
 ```
 
 ### Client
-The client connect to the server on the provided `host:port` and :
- - request a `hello world` message and display the return from the server
- - request a `hello wold` streaming message and display each message until the server stops sending
+The client connect to the server on the provided `host:port` and : 
+ - ~~request a `hello world` message and display the return from the server~~
+ - request a `hello world` streaming message and display each message until the server stops sending
 
 ```
 cd helloworld/greeter_client/
@@ -40,7 +40,13 @@ go build
 ```
 
 ## Docker
-Use the docker file to build an image embedding both client and server code
+Use the docker file to build an image embedding both client and server code.
+Best is to use the makefile : 
+```
+make docker
+make docker-push
+```
+or by hand :
 
 ```
 docker build -t prune/gohellogrpcstream:latest .
@@ -49,35 +55,19 @@ docker push prune/gohellogrpcstream:latest
 
 ## Kubernetes
 
-### server.yml
-Deploys a server + service that listen on port 7788
+Deploys a server + service that listen on port 7788 along with a load-tester client
 
 ```
-    kubectl -n dev apply -f kubernetes/server.yml
-```
-
-### client.yml
-Deploys a client that connect to the server on `greeter_server:7788`
-
-```
-    kubectl -n dev apply -f kubernetes/client.yml
+    kubectl -n dev apply -f kubernetes/deployment-autoinject-istio.yml
 ```
 
 # Load Test
-## server
-Deploy the server using the Istio Sidecar :
-```
-    kubectl -n dev apply -f kubernetes/server-istio.yml
-```
 
 ## client
 Use the `loadtest_client` which is simulating any number of clients in parallel.
-The `loadtest_client` make one TCP connexion per client which then open a `gRPC HTTP/2 Stream`. Starting 100 clients should show you 100 POST requests on `/helloworld.Greeter/SayHello`. 
+The `loadtest_client` make one TCP connexion per client which then open a `gRPC HTTP/2 Stream`. Starting 100 clients should show you 100 POST requests on `/helloworld.Greeter/SayHelloStream`. 
 When stopping the client, the 100 streams will be closed, showing 100 `/helloworld.Greeter/SayHelloStream` POSTs.
 
-```
-    kubectl -n dev apply -f kubernetes/deployment-loadtest.yml
-```
 You can then scale the number of connexions by either :
 - editing the number of `clients` from the ENV
 - scaling to more pods

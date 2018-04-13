@@ -29,8 +29,6 @@ import (
 	"os"
 	"time"
 
-	// kitlog "github.com/go-kit/kit/log"
-	// "github.com/Sirupsen/logrus"
 	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/tags"
@@ -86,12 +84,14 @@ func (s *server) SayHelloStream(stream pb.Greeter_SayHelloStreamServer) error {
 			break
 		}
 		if err != nil {
-			//log.Fatalf("%v.GetCustomers(_) = _, %v", c, err)
 			log.Errorf("Error while sending alerts to user: %v", err)
 			PromSayHelloStreamReceivedGauge.Dec()
 			break
 		}
+
 		log.Infof("Reveived Stream message %v", msg.Name)
+
+		// we reply to the message
 		err = stream.Send(&pb.HelloReply{Message: "Pong " + msg.Name})
 		if err == io.EOF {
 			log.Errorf("EOF while sending alerts to user: %v", err)
@@ -103,24 +103,6 @@ func (s *server) SayHelloStream(stream pb.Greeter_SayHelloStreamServer) error {
 			PromSayHelloStreamReceivedGauge.Dec()
 			break
 		}
-		// select {
-		// case <-time.After(10 * time.Second):
-		// 	err := stream.Send(&pb.HelloReply{Message: "Hello Stream " + *grpcPort})
-		// 	if err == io.EOF {
-		// 		log.Errorf("EOF while sending alerts to user: %v", err)
-		// 		PromSayHelloStreamReceivedGauge.Dec()
-		// 		break
-		// 	}
-		// 	if err != nil {
-		// 		log.Errorf("Error while sending alerts to user: %v", err)
-		// 		PromSayHelloStreamReceivedGauge.Dec()
-		// 		break
-		// 	}
-		// 	log.Info("sent message to client")
-		// case <-stream.Context().Done():
-		// 	PromSayHelloStreamReceivedGauge.Dec()
-		// 	return nil
-		// }
 
 	}
 	return nil
@@ -144,6 +126,8 @@ func main() {
 		logrus.SetLevel(logrus.WarnLevel)
 	}
 
+	// all the above logrus is not working...
+	// now we create the logrus logger
 	logger := logrus.New()
 	log := logger.WithFields(logrus.Fields{
 		"application": "greeter_server",
@@ -161,8 +145,8 @@ func main() {
 		}),
 	}
 
+	// configure the gRPC endpoint to report metrics, logs and increase HTTP2 streams
 	grpc_prometheus.EnableHandlingTimeHistogram()
-	//uIntOpt := grpc.UnaryInterceptor(requestdump.UnaryServerInterceptor(requestdump.Zap(zaplogger)))
 	serverOpts := []grpc.ServerOption{
 		grpc.MaxConcurrentStreams(50000),
 		grpc_middleware.WithUnaryServerChain(
@@ -176,8 +160,6 @@ func main() {
 	}
 	s := grpc.NewServer(serverOpts...)
 	pb.RegisterGreeterServer(s, &server{logger})
-	// Register reflection service on gRPC server.
-	// reflection.Register(s)
 
 	// healthz basic
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -195,11 +177,13 @@ func main() {
 	// prometheus metrics
 	http.Handle("/metrics", prometheus.Handler())
 
+	// listen on the HTTP port for metrics
 	go func() {
 		log.Warn(fmt.Sprintf("listening HTTP (metrics & map) on %v", *httpPort))
 		log.Warn(http.ListenAndServe(fmt.Sprintf(":%s", *httpPort), nil))
 	}()
 
+	// start the gRPC port
 	log.Warnf("Listening on tcp://localhost:%v", *grpcPort)
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)

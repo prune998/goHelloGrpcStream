@@ -47,10 +47,12 @@ spec:
     metadata:
       labels:
         app: "greeter-server"
+      annotations:
+          sidecar.istio.io/inject: "true"
     spec:
       containers:
       - name: greeter-server
-        image: "prune/gohellogrpcstream:latest"      
+        image: "prune/gohellogrpcstream:istio"      
         ports:
         - containerPort: 7788
           name: grpc-greeter
@@ -58,3 +60,42 @@ spec:
           name: http-greeter
         command: 
           - "/root/greeter_server"
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: loadtest-client
+  labels:
+    app: loadtest-client
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: "loadtest-client"
+  template:
+    metadata:
+      labels:
+        app: "loadtest-client"
+      annotations:
+          sidecar.istio.io/inject: "true"
+    spec:
+      containers:
+      - name: loadtest-client
+        image: "prune/gohellogrpcstream:istio"      
+        ports:
+        - containerPort: 7789
+          name: loadtest-client
+        command: 
+          - "/root/loadtest_client"
+        env:
+          - name: "CLIENTS"
+            value: "400"
+          - name: "SERVER"
+            value: "greeter-server:7788"
+          - name: "CNXDELAY"
+            value: "2000s"
