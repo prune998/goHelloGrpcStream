@@ -25,12 +25,12 @@ spec:
       - name: loadtest-client
         image: "prune/gohellogrpcstream:latest"      
         ports:
-        - containerPort: 7788
+        - containerPort: 7789
           name: loadtest-client
         command: 
           - "/root/loadtest_client"
         env:
           - name: "CLIENTS"
-            value: "10"
+            value: "100"
           - name: "SERVER"
             value: "greeter-server:7788"

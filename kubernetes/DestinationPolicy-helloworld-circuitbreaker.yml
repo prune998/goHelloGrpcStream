@@ -1,0 +1,17 @@
+apiVersion: config.istio.io/v1alpha2
+kind: DestinationPolicy
+metadata:
+  name: greeter-server-circuit-breaker
+spec:
+  circuitBreaker:
+    simpleCb:
+      httpConsecutiveErrors: 10
+      httpDetectionInterval: 1s
+      httpMaxEjectionPercent: 100
+      httpMaxPendingRequests: 10000
+      httpMaxRequests: 100000
+      httpMaxRequestsPerConnection: 10000
+      maxConnections: 100000
+      sleepWindow: 30s
+  destination:
+    name: greeter-server

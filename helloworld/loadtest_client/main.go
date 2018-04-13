@@ -19,13 +19,17 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
 	"time"
 
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/prometheus/client_golang/prometheus"
 
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/namsral/flag"
@@ -35,10 +39,12 @@ import (
 )
 
 var (
-	debug   = flag.Bool("debug", false, "display debugs")
-	server  = flag.String("server", "localhost:7788", "Greeter Server URL")
-	name    = flag.String("name", "world", "name of the client (will be displayed in the server)")
-	clients = flag.Int("clients", 1, "number of clients to simulate")
+	debug    = flag.Bool("debug", false, "display debugs")
+	server   = flag.String("server", "localhost:7788", "Greeter Server URL")
+	name     = flag.String("name", "world", "name of the client (will be displayed in the server)")
+	clients  = flag.Int("clients", 1, "number of clients to simulate")
+	httpPort = flag.String("httpport", "7789", "port to bind for HTTP")
+	version  = "no version set"
 )
 
 type Client struct {
@@ -78,16 +84,16 @@ func (c Client) Start(ctx context.Context, jobChan chan<- int, server, name stri
 	g := pb.NewGreeterClient(conn)
 
 	// Contact the server and print out its response.
-	r, err := g.SayHello(ctx, &pb.HelloRequest{Name: name})
-	if err != nil {
-		c.Logger.Log("msg", "could not greet server", "err", err, "ID", c.ID)
-		jobChan <- id
-		return
-	}
-	PromSayHelloReceivedCounter.Inc()
-	if c.debug {
-		c.Logger.Log("msg", "Received Greeting: "+r.Message, "ID", c.ID)
-	}
+	// r, err := g.SayHello(ctx, &pb.HelloRequest{Name: name})
+	// if err != nil {
+	// 	c.Logger.Log("msg", "could not greet server", "err", err, "ID", c.ID)
+	// 	jobChan <- id
+	// 	return
+	// }
+	// PromSayHelloReceivedCounter.Inc()
+	// if c.debug {
+	// 	c.Logger.Log("msg", "Received Greeting: "+r.Message, "ID", c.ID)
+	// }
 
 	stream, err := g.SayHelloStream(context.Background())
 	if err != nil {
@@ -95,20 +101,44 @@ func (c Client) Start(ctx context.Context, jobChan chan<- int, server, name stri
 		jobChan <- id
 		return
 	}
-	PromSayHelloStreamReceivedCounter.Inc()
+	err = stream.SendMsg(&pb.HelloReply{Message: "Ping " + c.ID})
+	if err != nil {
+		c.Logger.Log("msg", "error while sending alerts to server", "err", err, "ID", c.ID)
+		jobChan <- id
+		return
+	}
+	PromSayHelloStreamGauge.Inc()
+
 	for {
+		if c.debug {
+			c.Logger.Log("msg", "waiting for server response", "ID", c.ID)
+		}
 		msg, err := stream.Recv()
 		if err == io.EOF {
 			c.Logger.Log("msg", "got EOF from server", "err", err, "ID", c.ID)
-			break
+			PromSayHelloStreamGauge.Dec()
+			jobChan <- id
+			return
 		}
 		if err != nil {
 			//log.Fatalf("%v.GetCustomers(_) = _, %v", c, err)
 			c.Logger.Log("msg", "got error from server", "err", err, "ID", c.ID)
-			break
+			PromSayHelloStreamGauge.Dec()
+			jobChan <- id
+			return
 		}
+		PromSayHelloStreamReceivedCounter.Inc()
 		if c.debug {
 			c.Logger.Log("msg", msg.Message, "ID", c.ID)
+		}
+		time.Sleep(60 * time.Second)
+		err = stream.CloseSend()
+		if err != nil {
+			//log.Fatalf("%v.GetCustomers(_) = _, %v", c, err)
+			c.Logger.Log("msg", "got error from CloseSend", "err", err, "ID", c.ID)
+			PromSayHelloStreamGauge.Dec()
+			jobChan <- id
+			return
 		}
 	}
 }
@@ -124,6 +154,28 @@ func main() {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
 
+	// healthz basic
+	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		m := map[string]interface{}{"version": version, "status": "OK"}
+
+		b, err := json.Marshal(m)
+		if err != nil {
+			http.Error(w, "no valid point for this device_id", 500)
+			return
+		}
+
+		w.Write(b)
+	})
+
+	// prometheus metrics
+	http.Handle("/metrics", prometheus.Handler())
+
+	// start the HTTP listener for metrics
+	go func() {
+		logger.Log("msg", fmt.Sprintf("listening HTTP (metrics & map) on %v", *httpPort))
+		logger.Log("err", http.ListenAndServe(fmt.Sprintf(":%s", *httpPort), nil))
+	}()
+
 	// start many go routines with clients
 	jobs := make([]*Client, *clients)
 	ctx := context.Background()
@@ -133,6 +185,10 @@ func main() {
 		jobs[i] = NewClient(strconv.Itoa(i), logger, *debug)
 		go jobs[i].Start(ctx, jobChan, *server, strconv.Itoa(i), i)
 		jobCounter++
+		time.Sleep(100 * time.Millisecond)
+		if jobCounter%10 == 0 {
+			logger.Log("info", "job counter", "count", jobCounter)
+		}
 	}
 
 	for {
@@ -144,6 +200,10 @@ func main() {
 			return
 		case <-time.After(20 * time.Second):
 			logger.Log("info", "jobCounter", "jobCounter", jobCounter)
+			if jobCounter == 0 {
+				logger.Log("info", "no more jobs")
+				return
+			}
 		}
 	}
 

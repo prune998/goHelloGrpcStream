@@ -37,7 +37,7 @@ const (
 	infinity                      = time.Duration(math.MaxInt64)
 	defaultClientKeepaliveTime    = infinity
 	defaultClientKeepaliveTimeout = time.Duration(20 * time.Second)
-	defaultMaxStreamsClient       = 100
+	defaultMaxStreamsClient       = 500 // changed from 100 by prune
 	defaultMaxConnectionIdle      = infinity
 	defaultMaxConnectionAge       = infinity
 	defaultMaxConnectionAgeGrace  = infinity

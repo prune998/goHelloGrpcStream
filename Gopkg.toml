@@ -30,12 +30,24 @@
   version = "0.7.0"
 
 [[constraint]]
+  branch = "master"
   name = "github.com/golang/protobuf"
-  version = "1.0.0"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/grpc-ecosystem/go-grpc-middleware"
+
+[[constraint]]
+  name = "github.com/grpc-ecosystem/go-grpc-prometheus"
+  version = "1.1.0"
 
 [[constraint]]
   name = "github.com/namsral/flag"
   version = "1.7.4-pre"
+
+[[constraint]]
+  name = "github.com/prometheus/client_golang"
+  version = "0.8.0"
 
 [[constraint]]
   branch = "master"
@@ -43,7 +55,7 @@
 
 [[constraint]]
   name = "google.golang.org/grpc"
-  version = "1.11.2"
+  version = "1.11.3"
 
 [prune]
   go-tests = true
