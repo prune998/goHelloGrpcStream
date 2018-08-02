@@ -76,6 +76,7 @@ func (s *server) SayHelloStream(stream pb.Greeter_SayHelloStreamServer) error {
 	})
 	PromSayHelloStreamReceivedCounter.Inc()
 	PromSayHelloStreamReceivedGauge.Inc()
+	log.Info("SayHelloStream called")
 	for {
 		msg, err := stream.Recv()
 		if err == io.EOF {

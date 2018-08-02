@@ -23,6 +23,8 @@ The server opens a TCP socket and wait for GRPC messages to come in
 2017/11/13 10:35:54 Listening on tcp://localhost: :7788
 ```
 
+The server does not support HTTPS yet. You have to use a middleware (Istio/Envoy, Traefik, Nginx...) to handle the TLS termination and send plain HTTP/2 to the server
+
 ### Client
 The client connect to the server on the provided `host:port` and : 
  - ~~request a `hello world` message and display the return from the server~~
@@ -31,13 +33,26 @@ The client connect to the server on the provided `host:port` and :
 ```
 cd helloworld/greeter_client/
 go build
-./greeter_client localhost:7788
+./greeter_client -debug -server=localhost:7788 -unary
 
 2017/11/13 10:26:04 Greeting: Hello world:7788
 2017/11/13 10:26:09 Hello Streamworld:7788
 2017/11/13 10:26:14 Hello Streamworld:7788
 2017/11/13 10:26:19 Hello Streamworld:7788
 ```
+
+The client support two modes :
+ - unary : will send a single HTTP/2 request
+   This is usefull to test the low level connectivity
+ - stream : will send a HTTP/2 di-directional Stream request and keep the stream opened
+  This is usefull to test the longevity of the connection and the number of possible parallel connections
+
+The client support TLS, see `-h` for options
+
+### Loadtest
+The loadtest application opens one HTTP/2 streaming connection per `-clients` and maintain it for `-cnxDelay`
+
+The loadtest support TLS, see `-h` for options
 
 ## Docker
 Use the docker file to build an image embedding both client and server code.

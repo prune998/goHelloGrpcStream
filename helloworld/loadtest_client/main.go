@@ -19,6 +19,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -36,35 +37,42 @@ import (
 	pb "github.com/prune998/goHelloGrpcStream/helloworld/helloworld"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 var (
-	debug    = flag.Bool("debug", false, "display debugs")
-	server   = flag.String("server", "localhost:7788", "Greeter Server URL")
-	name     = flag.String("name", "world", "name of the client (will be displayed in the server)")
-	clients  = flag.Int("clients", 1, "number of clients to simulate")
-	cnxDelay = flag.Duration("cnxDelay", 60, "time before closing the HTTP2 Stream in seconds")
-	httpPort = flag.String("httpport", "7789", "port to bind for HTTP")
-	version  = "no version set"
+	debug              = flag.Bool("debug", false, "display debugs")
+	server             = flag.String("server", "localhost:7788", "Greeter Server URL")
+	name               = flag.String("name", "world", "name of the client (will be displayed in the server)")
+	clients            = flag.Int("clients", 1, "number of clients to simulate")
+	cnxDelay           = flag.Duration("cnxDelay", 60, "time before closing the HTTP2 Stream in seconds")
+	httpPort           = flag.String("httpport", "7789", "port to bind for HTTP")
+	version            = "no version set"
+	withTLS            = flag.Bool("tls", false, "whether to use TLS")
+	insecureSkipVerify = flag.Bool("insecureSkipVerify", true, "whether to ignore security checks")
 )
 
 // Client is a worker that will load the server
 type Client struct {
 	kitlog.Logger
-	ID    string `json:"device_id"`
-	debug bool
+	ID                 string `json:"device_id"`
+	debug              bool
+	withTLS            bool
+	insecureSkipVerify bool
 }
 
 // NewClient creates a new client
-func NewClient(id string, logger kitlog.Logger, debug bool) *Client {
+func NewClient(id string, logger kitlog.Logger, debug, withTLS, insecureSkipVerify bool) *Client {
 	if debug {
 		logger.Log("msg", "starting client "+id)
 	}
 
 	return &Client{
-		Logger: logger,
-		ID:     id,
-		debug:  debug,
+		Logger:             logger,
+		ID:                 id,
+		debug:              debug,
+		withTLS:            withTLS,
+		insecureSkipVerify: insecureSkipVerify,
 	}
 }
 
@@ -72,11 +80,21 @@ func NewClient(id string, logger kitlog.Logger, debug bool) *Client {
 func (c Client) Start(ctx context.Context, jobChan chan<- int, server, name string, id int) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	conn, err := grpc.Dial(server,
-		grpc.WithInsecure(),
+
+	// Setup gRPC options and TLS
+	grpcOpts := []grpc.DialOption{
 		grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
 		grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
-	)
+	}
+
+	if c.withTLS {
+		creds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: c.insecureSkipVerify})
+		grpcOpts = append(grpcOpts, grpc.WithTransportCredentials(creds))
+	} else {
+		grpcOpts = append(grpcOpts, grpc.WithInsecure())
+	}
+
+	conn, err := grpc.Dial(server, grpcOpts...)
 	if err != nil {
 		c.Logger.Log("msg", "cant connect to server", "err", err, "ID", c.ID)
 		jobChan <- id
@@ -193,7 +211,7 @@ func main() {
 	jobChan := make(chan int)
 	jobCounter := 0
 	for i := 0; i < *clients; i++ {
-		jobs[i] = NewClient(strconv.Itoa(i), logger, *debug)
+		jobs[i] = NewClient(strconv.Itoa(i), logger, *debug, *withTLS, *insecureSkipVerify)
 		go jobs[i].Start(ctx, jobChan, *server, strconv.Itoa(i), i)
 		jobCounter++
 		// delay the clients creation by 100ms
