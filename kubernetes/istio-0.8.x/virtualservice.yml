@@ -1,0 +1,20 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: hello-vs-ingress
+spec:
+  gateways:
+  - ingressgateway
+  hosts:
+  - hello.test.domain.ca
+  - hello.test.domain.ca:443
+  - hello.test.domain.ca:80
+  http:
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: greeter-server
+        port:
+          number: 7788

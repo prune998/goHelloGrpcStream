@@ -1,0 +1,13 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: greeter-server-destinationrule
+spec:
+  name: greeter-server
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 2000
+      http:
+        http2MaxRequests: 5000
+        maxRequestsPerConnection: 10000

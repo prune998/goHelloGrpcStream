@@ -24,20 +24,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"os"
 	"time"
 
-	kitlog "github.com/go-kit/kit/log"
+	"github.com/grpc-ecosystem/go-grpc-middleware"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
+
 	"github.com/namsral/flag"
 	"github.com/prometheus/client_golang/prometheus"
 	pb "github.com/prune998/goHelloGrpcStream/helloworld/helloworld"
+	"github.com/sirupsen/logrus"
+
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 )
 
 var (
@@ -50,63 +53,114 @@ var (
 
 // server is used to implement helloworld.GreeterServer.
 type server struct {
-	kitlog.Logger
+	*logrus.Logger
 }
 
 // SayHello implements helloworld.GreeterServer
 func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
+	log := s.WithFields(logrus.Fields{
+		"client":   in.Name,
+		"port":     *grpcPort,
+		"endpoint": "SayHello",
+	})
 	PromSayHelloReceivedCounter.Inc()
-	s.Log("msg", "got request", "client", in.Name, "port", *grpcPort)
+	log.Infof("got request from client %v:%v", in.Name, *grpcPort)
 	return &pb.HelloReply{Message: "Hello " + in.Name + " " + *grpcPort}, nil
 }
 
 // SayHelloStream implements helloworld.GreeterServer
 func (s *server) SayHelloStream(stream pb.Greeter_SayHelloStreamServer) error {
+	log := s.WithFields(logrus.Fields{
+		"port":     *grpcPort,
+		"endpoint": "SayHelloStream",
+	})
 	PromSayHelloStreamReceivedCounter.Inc()
 	PromSayHelloStreamReceivedGauge.Inc()
+	log.Info("SayHelloStream called")
 	for {
-		select {
-		case <-time.After(5 * time.Second):
-			err := stream.Send(&pb.HelloReply{Message: "Hello Stream " + *grpcPort})
-			if err == io.EOF {
-				s.Log("msg", "EOF while sending alerts to user", "err", err)
-				PromSayHelloStreamReceivedGauge.Dec()
-				break
-			}
-			if err != nil {
-				s.Log("msg", "Error while sending alerts to user", "err", err)
-				PromSayHelloStreamReceivedGauge.Dec()
-				break
-			}
-		case <-stream.Context().Done():
+		msg, err := stream.Recv()
+		if err == io.EOF {
+			log.Errorf("EOF while sending alerts to user: %v", err)
 			PromSayHelloStreamReceivedGauge.Dec()
-			return nil
+			break
+		}
+		if err != nil {
+			log.Errorf("Error while sending alerts to user: %v", err)
+			PromSayHelloStreamReceivedGauge.Dec()
+			break
+		}
+
+		log.Infof("Reveived Stream message %v", msg.Name)
+
+		// we reply to the message
+		err = stream.Send(&pb.HelloReply{Message: "Pong " + msg.Name})
+		if err == io.EOF {
+			log.Errorf("EOF while sending alerts to user: %v", err)
+			PromSayHelloStreamReceivedGauge.Dec()
+			break
+		}
+		if err != nil {
+			log.Errorf("Error while sending alerts to user: %v", err)
+			PromSayHelloStreamReceivedGauge.Dec()
+			break
 		}
 
 	}
+	return nil
 }
 
 func main() {
 	flag.Parse()
 
-	// setup logger with Json output
-	logger := kitlog.NewJSONLogger(kitlog.NewSyncWriter(os.Stdout))
-	logger = kitlog.With(logger, "application", "greeter_server", "ts", kitlog.DefaultTimestampUTC, "caller", kitlog.DefaultCaller)
+	// Logrus
+	// Log as JSON instead of the default ASCII formatter.
+	logrus.SetFormatter(&logrus.JSONFormatter{})
 
+	// Output to stdout instead of the default stderr
+	// Can be any io.Writer, see below for File example
+	logrus.SetOutput(os.Stdout)
+
+	// Only log the warning severity or above.
+	if *debug {
+		logrus.SetLevel(logrus.DebugLevel)
+	} else {
+		logrus.SetLevel(logrus.WarnLevel)
+	}
+
+	// all the above logrus is not working...
+	// now we create the logrus logger
+	logger := logrus.New()
+	log := logger.WithFields(logrus.Fields{
+		"application": "greeter_server",
+	})
+	grpc_logrus.ReplaceGrpcLogger(log)
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%v", *grpcPort))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
+	// add logrus accesslogs
+	opts := []grpc_logrus.Option{
+		grpc_logrus.WithDurationField(func(duration time.Duration) (key string, value interface{}) {
+			return "grpc.time_ns", duration.Nanoseconds()
+		}),
+	}
+
+	// configure the gRPC endpoint to report metrics, logs and increase HTTP2 streams
 	grpc_prometheus.EnableHandlingTimeHistogram()
 	serverOpts := []grpc.ServerOption{
-		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
-		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+		grpc.MaxConcurrentStreams(50000),
+		grpc_middleware.WithUnaryServerChain(
+			grpc_ctxtags.UnaryServerInterceptor(),
+			grpc_logrus.UnaryServerInterceptor(log, opts...),
+		),
+		grpc_middleware.WithStreamServerChain(
+			grpc_ctxtags.StreamServerInterceptor(),
+			grpc_logrus.StreamServerInterceptor(log, opts...),
+		),
 	}
 	s := grpc.NewServer(serverOpts...)
 	pb.RegisterGreeterServer(s, &server{logger})
-	// Register reflection service on gRPC server.
-	reflection.Register(s)
 
 	// healthz basic
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -124,12 +178,14 @@ func main() {
 	// prometheus metrics
 	http.Handle("/metrics", prometheus.Handler())
 
+	// listen on the HTTP port for metrics
 	go func() {
-		logger.Log("msg", fmt.Sprintf("listening HTTP (metrics & map) on %d", *httpPort))
-		logger.Log("err", http.ListenAndServe(fmt.Sprintf(":%s", *httpPort), nil))
+		log.Warn(fmt.Sprintf("listening HTTP (metrics & map) on %v", *httpPort))
+		log.Warn(http.ListenAndServe(fmt.Sprintf(":%s", *httpPort), nil))
 	}()
 
-	logger.Log("msg", "Listening on tcp://localhost:"+*grpcPort)
+	// start the gRPC port
+	log.Warnf("Listening on tcp://localhost:%v", *grpcPort)
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}

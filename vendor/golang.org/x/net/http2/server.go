@@ -53,7 +53,7 @@ const (
 	prefaceTimeout        = 10 * time.Second
 	firstSettingsTimeout  = 2 * time.Second // should be in-flight with preface anyway
 	handlerChunkWriteSize = 4 << 10
-	defaultMaxStreams     = 250 // TODO: make this 100 as the GFE seems to?
+	defaultMaxStreams     = 2500 // TODO: make this 100 as the GFE seems to?
 )
 
 var (

@@ -7,7 +7,7 @@ metadata:
 spec:
   rules:
   # update the host field to reflect a public URL
-  - host: greet.dev
+  - host: greet.dev.mydomain.com
     http:
       paths:
       - backend:
