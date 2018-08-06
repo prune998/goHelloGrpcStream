@@ -95,7 +95,15 @@ You can then scale the number of connexions by either :
 - editing the number of `clients` from the ENV
 - scaling to more pods
 
-## ingress
+
+...
+```
+
+# Istio
+This tool was primilary made to test Istio Service Mesh deployed in Kubernetes.
+in the Kubernetes folder you will find the needed files to deploy the pods and create the Istio config.
+
+## Using Ingress (Istio < 0.8.0)
 You can test the client/server inside K8s but from an external point of view using an Ingress.
 Update the `kubernetes/ingress.yml` file with a public DNS name you own then deploy using : 
 ```
@@ -117,6 +125,18 @@ Then update the `greeter-client` or `loadtest-client` to use the external endpoi
           - name: "CLIENTS"
             value: "10"
           - name: "SERVER"
-            value: "your-external-dns-name:80"
-...
-```
+            value: "greet.dev.mydomain.com:80"
+
+You may use the `Destination Policy` and `Destination Rule` files to better configure the limits of the Istio Ingress. 
+Note that Istio < 1.x have some issues with the Max Concurent Streams values. 
+
+## Using Istio > 0.8.0 (including 1.0.0+)
+In 0.8.0 and 1.x, Istio changed his setup and no longer use the Kubernetes Ingress. 
+Instead, Istio is using a `LoadBalancer Service` to forward all the traffic to `Istio IngressGateway`.
+We here consider you have a working Istio Service Mesh. Refer to Istio docs otherwise.
+
+On the Istio side, you now need to create a `Gateway` that will allow incoming traffic to the Mesh and a `VirtualService` that will forward this traffic to a Kubernetes Service.
+
+Deploy the `gateway.yml` then the `virtualservice.yml`. 
+You should now be able to use the `greeter_client` or the `loadtest_client` by pointing it to `hello.test.domain.ca:80` or `hello.test.domain.ca:443`.
+Don't forger to replace all the demo domain names by your own, and propagate the DNS changes :)
