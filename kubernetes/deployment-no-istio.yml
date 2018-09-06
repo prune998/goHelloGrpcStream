@@ -52,7 +52,7 @@ spec:
     spec:
       containers:
       - name: greeter-server
-        image: "prune/gohellogrpcstream:istio"      
+        image: "prune/gohellogrpcstream:latest"      
         ports:
         - containerPort: 7788
           name: grpc-greeter
@@ -86,7 +86,7 @@ spec:
     spec:
       containers:
       - name: loadtest-client
-        image: "prune/gohellogrpcstream:istio"      
+        image: "prune/gohellogrpcstream:latest"      
         ports:
         - containerPort: 7789
           name: loadtest-client

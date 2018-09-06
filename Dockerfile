@@ -1,4 +1,4 @@
-FROM golang:1.10-alpine as builder
+FROM golang:1.11-alpine as builder
 
 LABEL vendor="Prune - prune@lecentre.net" \
       content="helloworld"
@@ -9,9 +9,6 @@ ARG BUILDTIME="20180411"
 COPY . /go/src/github.com/prune998/goHelloGrpcStream
 WORKDIR /go/src/github.com/prune998/goHelloGrpcStream/helloworld
 
-# RUN    { go get github.com/golang/protobuf || true; } && \
-#   go get  golang.org/x/net/context && \
-#  go get  google.golang.org/grpc
 RUN    cd greeter_server && CGO_ENABLED=0 GOOS=linux go build -v -ldflags "-X main.version=${VERSION}-${BUILDTIME}" && \
        cd ../greeter_client && CGO_ENABLED=0 GOOS=linux go build -v -ldflags "-X main.version=${VERSION}-${BUILDTIME}" && \
        cd ../loadtest_client && CGO_ENABLED=0 GOOS=linux go build -v -ldflags "-X main.version=${VERSION}-${BUILDTIME}"
