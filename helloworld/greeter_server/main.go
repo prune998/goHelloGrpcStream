@@ -29,13 +29,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-	"github.com/grpc-ecosystem/go-grpc-middleware/tags"
-	"github.com/grpc-ecosystem/go-grpc-prometheus"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/namsral/flag"
-	"github.com/prometheus/client_golang/prometheus"
 	pb "github.com/prune998/goHelloGrpcStream/helloworld/helloworld"
 	"github.com/sirupsen/logrus"
 
@@ -176,7 +176,7 @@ func main() {
 	})
 
 	// prometheus metrics
-	http.Handle("/metrics", prometheus.Handler())
+	http.Handle("/metrics", promhttp.Handler())
 
 	// listen on the HTTP port for metrics
 	go func() {

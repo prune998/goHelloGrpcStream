@@ -29,8 +29,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/prometheus/client_golang/prometheus"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/namsral/flag"
@@ -197,7 +197,7 @@ func main() {
 	})
 
 	// prometheus metrics
-	http.Handle("/metrics", prometheus.Handler())
+	http.Handle("/metrics", promhttp.Handler())
 
 	// start the HTTP listener for metrics
 	go func() {
