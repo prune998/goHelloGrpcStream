@@ -1,0 +1,25 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: gw-helloworld
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - hosts:
+    - helloworld.test.domain
+    port:
+      name: https-helloworld
+      number: 443
+      protocol: HTTPS
+    tls:
+      credentialName: cert-helloworld.test.domain
+      mode: SIMPLE
+      privateKey: sds
+      serverCertificate: sds
+  - hosts:
+    - helloworld.test.domain
+    port:
+      name: http-helloworld
+      number: 80
+      protocol: HTTP

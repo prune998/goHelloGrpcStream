@@ -1,6 +1,7 @@
 version := $(shell git describe  --always --tags --long --abbrev=8)
-
 buildtime := $(shell date -u +%Y%m%d.%H%M%S)
+
+GOBUILD_OPTS := -v -mod=vendor -ldflags "-X main.version=$(version)-$(buildtime)"
 
 all: cmds
 
@@ -24,13 +25,13 @@ helloworld/helloworld.pb.go:
 	cd helloworld && protoc -I helloworld/ helloworld/helloworld.proto --go_out=plugins=grpc:helloworld
 
 greeter_client: test
-	cd helloworld/greeter_client && CGO_ENABLED=0 GOOS=linux go build -v -ldflags "-X main.version=$(version)-$(buildtime)" 
+	cd helloworld/greeter_client && CGO_ENABLED=0 GOOS=linux go build $(GOBUILD_OPTS)
 
 greeter_server: test
-	cd helloworld/greeter_server && CGO_ENABLED=0 GOOS=linux go build -v -ldflags "-X main.version=$(version)-$(buildtime)" 
+	cd helloworld/greeter_server && CGO_ENABLED=0 GOOS=linux go build $(GOBUILD_OPTS)
 
 loadtest_client: test
-	cd helloworld/loadtest_client && CGO_ENABLED=0 GOOS=linux go build -v -ldflags "-X main.version=$(version)-$(buildtime)" 
+	cd helloworld/loadtest_client && CGO_ENABLED=0 GOOS=linux go build $(GOBUILD_OPTS)
 
 cmds: greeter_client greeter_server loadtest_client
 

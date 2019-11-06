@@ -29,8 +29,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/prometheus/client_golang/prometheus"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/namsral/flag"
@@ -45,8 +45,8 @@ var (
 	server             = flag.String("server", "localhost:7788", "Greeter Server URL")
 	name               = flag.String("name", "world", "name of the client (will be displayed in the server)")
 	clients            = flag.Int("clients", 1, "number of clients to simulate")
-	cnxDelay           = flag.Duration("cnxDelay", 60, "time before closing the HTTP2 Stream in seconds")
-	httpPort           = flag.String("httpport", "7789", "port to bind for HTTP")
+	sleepTime          = flag.Duration("sleeptime", 60*time.Second, "time before closing the HTTP2 Stream in seconds")
+	httpPort           = flag.String("httpport", "7787", "port to bind for HTTP")
 	version            = "no version set"
 	withTLS            = flag.Bool("tls", false, "whether to use TLS")
 	insecureSkipVerify = flag.Bool("insecureSkipVerify", true, "whether to ignore security checks")
@@ -124,51 +124,54 @@ func (c Client) Start(ctx context.Context, jobChan chan<- int, server, name stri
 		return
 	}
 
-	// send a message to the stream
-	err = stream.SendMsg(&pb.HelloReply{Message: "Ping " + c.ID})
-	if err != nil {
-		c.Logger.Log("msg", "error while sending alerts to server", "err", err, "ID", c.ID)
-		jobChan <- id
-		return
-	}
-	PromSayHelloStreamGauge.Inc()
+	// watch for messages from server
+	go func() {
+		for {
+			msg, err := stream.Recv()
+			if err == io.EOF {
+				c.Logger.Log("msg", "got EOF from server", "err", err, "ID", c.ID)
+				PromSayHelloStreamGauge.Dec()
+				jobChan <- id
+				return
+			}
+			if err != nil {
+				c.Logger.Log("msg", "got error from server", "err", err, "ID", c.ID)
+				PromSayHelloStreamGauge.Dec()
+				jobChan <- id
+				return
+			}
+			PromSayHelloStreamReceivedCounter.Inc()
+			if c.debug {
+				c.Logger.Log("msg", msg.Message, "ID", c.ID)
+			}
+		}
+	}()
 
 	// loop until we are done
 	for {
-		if c.debug {
-			c.Logger.Log("msg", "waiting for server response", "ID", c.ID)
-		}
-
-		// blocking call, waiting for the next server response inside the stream
-		msg, err := stream.Recv()
-		if err == io.EOF {
-			c.Logger.Log("msg", "got EOF from server", "err", err, "ID", c.ID)
-			PromSayHelloStreamGauge.Dec()
-			jobChan <- id
-			return
-		}
+		// send a message to the stream
+		err = stream.SendMsg(&pb.HelloReply{Message: "Ping " + c.ID})
 		if err != nil {
-			c.Logger.Log("msg", "got error from server", "err", err, "ID", c.ID)
-			PromSayHelloStreamGauge.Dec()
+			c.Logger.Log("msg", "error while sending alerts to server", "err", err, "ID", c.ID)
 			jobChan <- id
-			return
+			break
 		}
-		PromSayHelloStreamReceivedCounter.Inc()
-		if c.debug {
-			c.Logger.Log("msg", msg.Message, "ID", c.ID)
+		PromSayHelloStreamGauge.Inc()
+		if *debug {
+			c.Logger.Log("msg", "msg sent", "ID", c.ID)
 		}
 
 		// we close the stream after a fixed delay specified on the commandline
-		time.Sleep(*cnxDelay)
+		time.Sleep(*sleepTime)
+	}
 
-		// closing the stream will send an "EOF from server error"
-		err = stream.CloseSend()
-		if err != nil {
-			c.Logger.Log("msg", "got error from CloseSend", "err", err, "ID", c.ID)
-			PromSayHelloStreamGauge.Dec()
-			jobChan <- id
-			return
-		}
+	// closing the stream will send an "EOF from server error"
+	err = stream.CloseSend()
+	if err != nil {
+		c.Logger.Log("msg", "got error from CloseSend", "err", err, "ID", c.ID)
+		PromSayHelloStreamGauge.Dec()
+		jobChan <- id
+		return
 	}
 }
 
@@ -197,7 +200,7 @@ func main() {
 	})
 
 	// prometheus metrics
-	http.Handle("/metrics", prometheus.Handler())
+	http.Handle("/metrics", promhttp.Handler())
 
 	// start the HTTP listener for metrics
 	go func() {

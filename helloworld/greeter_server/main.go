@@ -29,13 +29,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-	"github.com/grpc-ecosystem/go-grpc-middleware/tags"
-	"github.com/grpc-ecosystem/go-grpc-prometheus"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/namsral/flag"
-	"github.com/prometheus/client_golang/prometheus"
 	pb "github.com/prune998/goHelloGrpcStream/helloworld/helloworld"
 	"github.com/sirupsen/logrus"
 
@@ -46,6 +46,7 @@ import (
 var (
 	freq     = flag.Duration("freq", 10*time.Second, "frequency for sending a msg")
 	debug    = flag.Bool("debug", false, "display debugs")
+	reply    = flag.Bool("reply", false, "reply to each message")
 	grpcPort = flag.String("grpcport", "7788", "port to bind for GRPC")
 	httpPort = flag.String("httpport", "7789", "port to bind for HTTP")
 	version  = "no version set"
@@ -93,16 +94,18 @@ func (s *server) SayHelloStream(stream pb.Greeter_SayHelloStreamServer) error {
 		log.Infof("Reveived Stream message %v", msg.Name)
 
 		// we reply to the message
-		err = stream.Send(&pb.HelloReply{Message: "Pong " + msg.Name})
-		if err == io.EOF {
-			log.Errorf("EOF while sending alerts to user: %v", err)
-			PromSayHelloStreamReceivedGauge.Dec()
-			break
-		}
-		if err != nil {
-			log.Errorf("Error while sending alerts to user: %v", err)
-			PromSayHelloStreamReceivedGauge.Dec()
-			break
+		if *reply {
+			err = stream.Send(&pb.HelloReply{Message: "Pong " + msg.Name})
+			if err == io.EOF {
+				log.Errorf("EOF while sending alerts to user: %v", err)
+				PromSayHelloStreamReceivedGauge.Dec()
+				break
+			}
+			if err != nil {
+				log.Errorf("Error while sending alerts to user: %v", err)
+				PromSayHelloStreamReceivedGauge.Dec()
+				break
+			}
 		}
 
 	}
@@ -176,7 +179,7 @@ func main() {
 	})
 
 	// prometheus metrics
-	http.Handle("/metrics", prometheus.Handler())
+	http.Handle("/metrics", promhttp.Handler())
 
 	// listen on the HTTP port for metrics
 	go func() {

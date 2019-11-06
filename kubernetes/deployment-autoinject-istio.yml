@@ -52,7 +52,7 @@ spec:
     spec:
       containers:
       - name: greeter-server
-        image: "prune/gohellogrpcstream:istio"      
+        image: "prune/gohellogrpcstream:latest"
         ports:
         - containerPort: 7788
           name: grpc-greeter
@@ -86,9 +86,9 @@ spec:
     spec:
       containers:
       - name: loadtest-client
-        image: "prune/gohellogrpcstream:istio"      
+        image: "prune/gohellogrpcstream:latest"
         ports:
-        - containerPort: 7789
+        - containerPort: 7787
           name: loadtest-client
         command: 
           - "tail"
@@ -99,5 +99,5 @@ spec:
             value: "400"
           - name: "SERVER"
             value: "greeter-server:7788"
-          - name: "CNXDELAY"
-            value: "2000s"
+          - name: "SLEEPTIME"
+            value: "2s"
