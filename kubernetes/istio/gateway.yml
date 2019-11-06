@@ -7,19 +7,18 @@ spec:
     istio: ingressgateway
   servers:
   - hosts:
-    - hello.test.domain.ca
-    - hello.test.domain.ca:443
+    - helloworld.test.domain
     port:
       name: https-helloworld
       number: 443
       protocol: HTTPS
     tls:
+      credentialName: cert-helloworld.test.domain
       mode: SIMPLE
       privateKey: sds
       serverCertificate: sds
   - hosts:
-    - hello.test.domain.ca
-    - hello.test.domain.ca:80
+    - helloworld.test.domain
     port:
       name: http-helloworld
       number: 80

@@ -6,9 +6,7 @@ spec:
   gateways:
   - gw-helloworld
   hosts:
-  - hello.test.domain.ca
-  - hello.test.domain.ca:443
-  - hello.test.domain.ca:80
+  - helloworld.test.domain
   http:
   - match:
     - uri:

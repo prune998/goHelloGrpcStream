@@ -1,0 +1,17 @@
+apiVersion: certmanager.k8s.io/v1alpha1
+kind: Certificate
+metadata:
+  name: cert-helloworld.test.domain
+  namespace: istio-system
+spec:
+  commonName: helloworld.test.domain
+  dnsNames:
+  - helloworld.test.domain
+  issuerRef:
+    kind: ClusterIssuer
+    name: ca-issuer
+  secretName: cert-helloworld.test.domain
+  usages:
+  - digital signature
+  - key encipherment
+  - server auth
