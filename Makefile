@@ -1,15 +1,15 @@
 version := $(shell git describe  --always --tags --long --abbrev=8)
 buildtime := $(shell date -u +%Y%m%d.%H%M%S)
 
-GOBUILD_OPTS := -v -mod=vendor -ldflags "-X main.version=$(version)-$(buildtime)"
+GOBUILD_OPTS := -v -ldflags "-X main.version=$(version)-$(buildtime)"
 
 all: cmds
 
 lint:
 	@gometalinter --disable-all --enable=vet --enable=vetshadow  --enable=structcheck \
 	    --enable=deadcode --enable=gotype --enable=goconst --enable=golint --enable=varcheck \
-	     --enable=unconvert --enable=staticcheck --enable=gas --enable=dupl --enable=ineffassign \
-	     --enable=gocyclo --cyclo-over=20 --vendor ./...
+	    --enable=unconvert --enable=staticcheck --enable=gas --enable=dupl --enable=ineffassign \
+	    --enable=gocyclo --cyclo-over=20 --vendor ./...
 
 docker:
 	docker build -t prune/gohellogrpcstream:$(version) --build-arg VERSION=$(version) --build-arg BUILDTIME=$(buildtime) .
