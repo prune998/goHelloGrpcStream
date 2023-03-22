@@ -27,7 +27,7 @@ spec:
   selector:
     app: "greeter-server"
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: greeter-server
@@ -47,12 +47,13 @@ spec:
     metadata:
       labels:
         app: "greeter-server"
+        sidecar.istio.io/inject: "true"
       annotations:
-          sidecar.istio.io/inject: "true"
     spec:
       containers:
       - name: greeter-server
         image: "prune/gohellogrpcstream:latest"
+        imagePullPolicy: Always
         ports:
         - containerPort: 7788
           name: grpc-greeter
@@ -61,7 +62,7 @@ spec:
         command: 
           - "/root/greeter_server"
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: loadtest-client
@@ -81,12 +82,14 @@ spec:
     metadata:
       labels:
         app: "loadtest-client"
+        sidecar.istio.io/inject: "true"
       annotations:
-          sidecar.istio.io/inject: "true"
+          
     spec:
       containers:
       - name: loadtest-client
         image: "prune/gohellogrpcstream:latest"
+        imagePullPolicy: Always
         ports:
         - containerPort: 7787
           name: loadtest-client

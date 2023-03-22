@@ -27,7 +27,7 @@ spec:
   selector:
     app: "greeter-server"
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: greeter-server
@@ -61,7 +61,7 @@ spec:
         command: 
           - "/root/greeter_server"
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: loadtest-client
