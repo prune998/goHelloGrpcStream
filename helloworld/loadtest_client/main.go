@@ -32,7 +32,7 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/namsral/flag"
 	pb "github.com/prune998/goHelloGrpcStream/helloworld/helloworld"
 	"golang.org/x/net/context"

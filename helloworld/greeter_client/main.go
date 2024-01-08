@@ -23,9 +23,9 @@ import (
 	"io"
 	"os"
 
-	"github.com/grpc-ecosystem/go-grpc-prometheus"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/namsral/flag"
 	pb "github.com/prune998/goHelloGrpcStream/helloworld/helloworld"
 	"golang.org/x/net/context"
@@ -33,12 +33,7 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-const (
-	defaultName = "world"
-)
-
 var (
-	debug              = flag.Bool("debug", false, "display debugs")
 	server             = flag.String("server", "localhost:7788", "Greeter Server URL")
 	name               = flag.String("name", "world", "name of the client (will be displayed in the server)")
 	unary              = flag.Bool("unary", false, "open unary HTTP/2 connextion")
