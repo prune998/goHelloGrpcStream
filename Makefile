@@ -22,7 +22,7 @@ protos: helloworld/helloworld.pb.go
 
 helloworld/helloworld.pb.go:
 	# cd helloworld/helloworld && go generate
-	cd helloworld && protoc -I helloworld/ helloworld/helloworld.proto --go_out=plugins=grpc:helloworld
+	cd helloworld && protoc --go_out=. --go_opt=paths=source_relative  --go-grpc_out=. --go-grpc_opt=paths=source_relative  helloworld/helloworld.proto
 
 greeter_client: test
 	cd helloworld/greeter_client && CGO_ENABLED=0 GOOS=linux go build $(GOBUILD_OPTS)

@@ -29,7 +29,6 @@ import (
 	"os"
 	"time"
 
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -55,6 +54,7 @@ var (
 // server is used to implement helloworld.GreeterServer.
 type server struct {
 	*logrus.Logger
+	pb.UnimplementedGreeterServer
 }
 
 // SayHello implements helloworld.GreeterServer
@@ -153,17 +153,17 @@ func main() {
 	grpc_prometheus.EnableHandlingTimeHistogram()
 	serverOpts := []grpc.ServerOption{
 		grpc.MaxConcurrentStreams(50000),
-		grpc_middleware.WithUnaryServerChain(
+		grpc.ChainUnaryInterceptor(
 			grpc_ctxtags.UnaryServerInterceptor(),
 			grpc_logrus.UnaryServerInterceptor(log, opts...),
 		),
-		grpc_middleware.WithStreamServerChain(
+		grpc.ChainStreamInterceptor(
 			grpc_ctxtags.StreamServerInterceptor(),
 			grpc_logrus.StreamServerInterceptor(log, opts...),
 		),
 	}
 	s := grpc.NewServer(serverOpts...)
-	pb.RegisterGreeterServer(s, &server{logger})
+	pb.RegisterGreeterServer(s, &server{})
 
 	// healthz basic
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
